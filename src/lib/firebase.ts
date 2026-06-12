@@ -242,7 +242,14 @@ export const syncTaxpayers = (callback: (data: Taxpayer[]) => void): (() => void
     return onSnapshot(colRef, (snapshot) => {
       const data: Taxpayer[] = [];
       snapshot.forEach((docSnap) => {
-        data.push(docSnap.data() as Taxpayer);
+        const tp = docSnap.data() as Taxpayer;
+        // Deserialize polygonCoords from list of objects back to [number, number][]
+        if (tp.polygonCoords && Array.isArray(tp.polygonCoords)) {
+          if (tp.polygonCoords.length > 0 && typeof tp.polygonCoords[0] === 'object' && !Array.isArray(tp.polygonCoords[0])) {
+            tp.polygonCoords = (tp.polygonCoords as any).map((obj: any) => [obj.lat, obj.lng]);
+          }
+        }
+        data.push(tp);
       });
       callback(data);
     }, (error) => {
@@ -324,7 +331,19 @@ export const saveTaxpayer = async (taxpayer: Taxpayer) => {
   if (!useLocalFallback && dbInstance) {
     try {
       const docRef = doc(dbInstance, 'taxpayers', taxpayer.id);
-      await setDoc(docRef, cleanUndefined(taxpayer));
+      
+      // Serialize polygonCoords to list of objects to avoid "Nested arrays are not supported" error in Firestore
+      const toSave = { ...taxpayer };
+      if (toSave.polygonCoords && Array.isArray(toSave.polygonCoords)) {
+        if (toSave.polygonCoords.length > 0 && Array.isArray(toSave.polygonCoords[0])) {
+          toSave.polygonCoords = (toSave.polygonCoords as any).map((coord: any) => ({
+            lat: coord[0],
+            lng: coord[1]
+          }));
+        }
+      }
+      
+      await setDoc(docRef, cleanUndefined(toSave));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `taxpayers/${taxpayer.id}`);
     }
