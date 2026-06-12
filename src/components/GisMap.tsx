@@ -70,6 +70,7 @@ export default function GisMap({
   const [newNjopLand, setNewNjopLand] = useState<number>(3000000);
   const [newNjopBuilding, setNewNjopBuilding] = useState<number>(2000000);
   const [newTaxError, setNewTaxError] = useState<string>('');
+  const [geotagError, setGeotagError] = useState<string>('');
 
   // Checkout & payment states
   const [isPaying, setIsPaying] = useState<boolean>(false);
@@ -418,6 +419,7 @@ export default function GisMap({
     setDrawingCoords([]);
     setShowRegisterForm(false);
     setNewTaxError('');
+    setGeotagError('');
   };
 
   // Undo last drawing coordinate vertex
@@ -429,20 +431,37 @@ export default function GisMap({
   // Handle Geotag (Denah) update persistence
   const handleSaveGeotag = async () => {
     if (!selectedTaxpayer || drawingCoords.length < 3) return;
+    setGeotagError('');
 
-    const { lat, lng } = getCentroid(drawingCoords);
+    try {
+      const { lat, lng } = getCentroid(drawingCoords);
 
-    const updated: Taxpayer = {
-      ...selectedTaxpayer,
-      lat: lat,
-      lng: lng,
-      polygonCoords: drawingCoords,
-      updatedAt: new Date().toISOString()
-    };
+      const updated: Taxpayer = {
+        ...selectedTaxpayer,
+        lat: lat,
+        lng: lng,
+        polygonCoords: drawingCoords,
+        updatedAt: new Date().toISOString()
+      };
 
-    await onSaveTaxpayer(updated);
-    setSelectedTaxpayer(updated);
-    cancelDrawingMode();
+      await onSaveTaxpayer(updated);
+      setSelectedTaxpayer(updated);
+      cancelDrawingMode();
+    } catch (err: any) {
+      console.error('Error saving geotag:', err);
+      let errorMsg = 'Gagal menyimpan denah lokasi.';
+      if (err instanceof Error) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed.error) {
+            errorMsg += ` (${parsed.error})`;
+          }
+        } catch (_) {
+          errorMsg += ` (${err.message})`;
+        }
+      }
+      setGeotagError(errorMsg);
+    }
   };
 
   // Handle new tax object registration submit
@@ -489,8 +508,20 @@ export default function GisMap({
       setNewOwnerAddress('');
       setNewObjectAddress('');
       cancelDrawingMode();
-    } catch (err) {
-      setNewTaxError('Gagal menyimpan objek pajak baru. Silakan coba kembali.');
+    } catch (err: any) {
+      console.error('Error saving new taxpayer:', err);
+      let errorMsg = 'Gagal menyimpan objek pajak baru.';
+      if (err instanceof Error) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed.error) {
+            errorMsg += ` (${parsed.error})`;
+          }
+        } catch (_) {
+          errorMsg += ` (${err.message})`;
+        }
+      }
+      setNewTaxError(errorMsg);
     }
   };
 
@@ -709,6 +740,12 @@ export default function GisMap({
                 </button>
               </div>
             </div>
+
+            {geotagError && (
+              <div className="bg-rose-500/15 p-2.5 rounded-xl text-rose-600 dark:text-rose-450 font-bold border border-rose-500/25 text-[10px]">
+                ⚠️ {geotagError}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
