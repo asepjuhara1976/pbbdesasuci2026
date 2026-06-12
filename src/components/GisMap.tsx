@@ -928,7 +928,7 @@ export default function GisMap({
                   <label className="text-slate-500 dark:text-slate-400 font-bold">ALAMAT OBJEK LANDASAN PAJAK (Letak Lahan)</label>
                   <textarea
                     rows={2}
-                    placeholder="Contoh: Blok G-09, Jl. Dago Atas, Desa Suci, Bandung"
+                    placeholder="Contoh: Blok G-09, Jl. Dago Atas, Desa Suci, Garut"
                     value={newObjectAddress}
                     onChange={(e) => setNewObjectAddress(e.target.value)}
                     className="w-full bg-white dark:bg-[#0C0C0C] border border-slate-200 dark:border-white/5 p-2.5 rounded-xl text-slate-800 dark:text-slate-200 outline-none focus:border-cyan-500 resize-none leading-relaxed"
