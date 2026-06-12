@@ -299,11 +299,32 @@ export const syncPaymentLogs = (callback: (data: PaymentLog[]) => void): (() => 
   }
 };
 
+// Sanitization helper to filter out any "undefined" keys, since modern Firestore setDoc/addDoc does not support undefined values
+const cleanUndefined = (obj: any): any => {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanUndefined(item));
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        if (val !== undefined) {
+          cleaned[key] = cleanUndefined(val);
+        }
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+};
+
 export const saveTaxpayer = async (taxpayer: Taxpayer) => {
   if (!useLocalFallback && dbInstance) {
     try {
       const docRef = doc(dbInstance, 'taxpayers', taxpayer.id);
-      await setDoc(docRef, taxpayer);
+      await setDoc(docRef, cleanUndefined(taxpayer));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `taxpayers/${taxpayer.id}`);
     }
@@ -345,7 +366,7 @@ export const addPaymentLog = async (log: PaymentLog) => {
   if (!useLocalFallback && dbInstance) {
     try {
       const docRef = doc(dbInstance, 'payment_logs', log.id);
-      await setDoc(docRef, log);
+      await setDoc(docRef, cleanUndefined(log));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `payment_logs/${log.id}`);
     }
