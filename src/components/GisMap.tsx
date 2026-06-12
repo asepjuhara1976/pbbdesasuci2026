@@ -140,11 +140,13 @@ export default function GisMap({
     }
     // Centered auto-constructed rectangular parcel fallback
     const halfSize = 0.0003;
+    const lat = (!tp.lat || tp.lat === 0) ? defaultCenter.lat : tp.lat;
+    const lng = (!tp.lng || tp.lng === 0) ? defaultCenter.lng : tp.lng;
     return [
-      [tp.lat + halfSize, tp.lng - halfSize],
-      [tp.lat + halfSize, tp.lng + halfSize],
-      [tp.lat - halfSize, tp.lng + halfSize],
-      [tp.lat - halfSize, tp.lng - halfSize]
+      [lat + halfSize, lng - halfSize],
+      [lat + halfSize, lng + halfSize],
+      [lat - halfSize, lng + halfSize],
+      [lat - halfSize, lng - halfSize]
     ];
   };
 
@@ -281,6 +283,10 @@ export default function GisMap({
     });
 
     matchedList.forEach(tp => {
+      // Skip rendering on map if coordinate is 0, 0 or empty
+      if (!tp.lat || !tp.lng || (tp.lat === 0 && tp.lng === 0)) {
+        return;
+      }
       const polygonCoords = getTaxpayerPolygon(tp);
       const isSelected = selectedTaxpayer?.id === tp.id;
       const color = tp.isPaid ? '#06b6d4' : '#ef4444';
@@ -326,6 +332,18 @@ export default function GisMap({
       }
     });
   }, [taxpayers, filterLayer, searchQuery, selectedTaxpayer, drawingMode]);
+
+  // Focus map viewport when selected Taxpayer is updated (including unmapped taxpayers)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !selectedTaxpayer || drawingMode !== 'none') return;
+    
+    const isUnmapped = !selectedTaxpayer.lat || !selectedTaxpayer.lng || (selectedTaxpayer.lat === 0 && selectedTaxpayer.lng === 0);
+    if (isUnmapped) {
+      // Center map on Desa Suci default center with animation
+      map.setView([defaultCenter.lat, defaultCenter.lng], 16, { animate: true });
+    }
+  }, [selectedTaxpayer, drawingMode]);
 
   // Handle active Drawing coordinates dynamic feedback
   useEffect(() => {
@@ -1142,6 +1160,18 @@ export default function GisMap({
             ) : (
               // GENERAL TAX INFORMATION COMPREHENSIVE SHEET
               <div className="space-y-4">
+                {(!selectedTaxpayer.lat || !selectedTaxpayer.lng || (selectedTaxpayer.lat === 0 && selectedTaxpayer.lng === 0)) && (
+                  <div className="bg-amber-500/10 border border-amber-500/25 p-3.5 rounded-2xl text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2.5">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block text-slate-800 dark:text-amber-300">Letak Objek Belum Dipetakan</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                        Data objek pajak PBB ini tidak memiliki koordinat letak objek. {isLoggedIn ? 'Silakan gunakan tombol "Ubah / Gambar Denah" di bawah untuk menentukan lokasi persil tanah secara manual.' : 'Silakan login sebagai Petugas PBB untuk memetakan objek secara manual.'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div className="bg-slate-50 dark:bg-[#121212] p-3 rounded-2xl border border-slate-200 dark:border-white/5">
                     <span className="text-slate-500 dark:text-slate-450 block text-[9.5px]">Pemilik (Wajib Pajak)</span>
