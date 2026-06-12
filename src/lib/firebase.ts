@@ -11,7 +11,8 @@ import {
   onSnapshot, 
   query, 
   orderBy,
-  getDocFromServer
+  getDocFromServer,
+  writeBatch
 } from 'firebase/firestore';
 import { Taxpayer, PaymentLog } from '../types';
 import firebaseConfig from '../firebase-applet-config.json';
@@ -358,6 +359,46 @@ export const saveTaxpayer = async (taxpayer: Taxpayer) => {
     }
     localStorage.setItem('pbb_taxpayers', JSON.stringify(taxpayers));
     // Trigger custom event for same-window updates
+    window.dispatchEvent(new Event('storage'));
+  }
+};
+
+export const saveTaxpayersBatch = async (list: Taxpayer[]) => {
+  if (!useLocalFallback && dbInstance) {
+    try {
+      const CHUNK_SIZE = 400;
+      for (let i = 0; i < list.length; i += CHUNK_SIZE) {
+        const chunk = list.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(dbInstance);
+        for (const taxpayer of chunk) {
+          const docRef = doc(dbInstance, 'taxpayers', taxpayer.id);
+          const toSave = { ...taxpayer };
+          if (toSave.polygonCoords && Array.isArray(toSave.polygonCoords)) {
+            if (toSave.polygonCoords.length > 0 && Array.isArray(toSave.polygonCoords[0])) {
+              toSave.polygonCoords = (toSave.polygonCoords as any).map((coord: any) => ({
+                lat: coord[0],
+                lng: coord[1]
+              }));
+            }
+          }
+          batch.set(docRef, cleanUndefined(toSave));
+        }
+        await batch.commit();
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'taxpayers-batch');
+    }
+  } else {
+    const storageData = localStorage.getItem('pbb_taxpayers');
+    const taxpayers: Taxpayer[] = storageData ? JSON.parse(storageData) : [];
+    
+    // Index existing to make updates faster
+    const wpMap = new Map(taxpayers.map((t) => [t.id, t]));
+    for (const taxpayer of list) {
+      wpMap.set(taxpayer.id, taxpayer);
+    }
+    const updated = Array.from(wpMap.values());
+    localStorage.setItem('pbb_taxpayers', JSON.stringify(updated));
     window.dispatchEvent(new Event('storage'));
   }
 };
