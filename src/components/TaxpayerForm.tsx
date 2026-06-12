@@ -194,7 +194,7 @@ export default function TaxpayerForm({ onAdd, onCancel, isLoggedIn, onLoginDemo 
                 <MapPin className="h-4 w-4 text-slate-400 dark:text-slate-500 mt-1" />
                 <textarea 
                   rows={2}
-                  placeholder="Desa Suci, Bandung (Nomor kavling/persil)..."
+                  placeholder="Desa Suci, Garut (Nomor kavling/persil)..."
                   value={objectAddress}
                   onChange={(e) => setObjectAddress(e.target.value)}
                   className="bg-transparent border-none outline-none text-xs w-full text-slate-800 dark:text-slate-200 resize-none leading-relaxed"
