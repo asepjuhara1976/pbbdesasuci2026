@@ -45,23 +45,25 @@ service cloud.firestore {
 
     // Entity-Specific Validation Helpers
     function isValidTaxpayer(data) {
-      return data.keys().hasAll(['id', 'name', 'address', 'objectAddress', 'landArea', 'buildingArea', 'njopLand', 'njopBuilding', 'totalTax', 'isPaid', 'lat', 'lng', 'updatedAt'])
+      // Core fields that must be present and valid
+      return data.keys().hasAll(['id', 'name', 'landArea', 'njopLand', 'totalTax', 'isPaid', 'lat', 'lng', 'updatedAt'])
         && data.id is string && data.id.size() <= 100
         && data.name is string && data.name.size() <= 200
-        && data.address is string && data.address.size() <= 500
-        && data.objectAddress is string && data.objectAddress.size() <= 500
         && data.landArea is number
-        && data.buildingArea is number
         && data.njopLand is number
-        && data.njopBuilding is number
         && data.totalTax is number
         && data.isPaid is bool
         && data.lat is number
         && data.lng is number
         && data.updatedAt is string
-        && (!data.keys().hasAny(['polygonCoords']) || data.polygonCoords is list)
-        && (!data.keys().hasAny(['paymentDate']) || data.paymentDate is string)
-        && (!data.keys().hasAny(['paymentMethod']) || data.paymentMethod is string);
+        // Optional or nullable fields to handle omission, partial imports, or nullish properties under client serialization
+        && (!data.keys().hasAny(['address']) || data.address == null || (data.address is string && data.address.size() <= 600))
+        && (!data.keys().hasAny(['objectAddress']) || data.objectAddress == null || (data.objectAddress is string && data.objectAddress.size() <= 600))
+        && (!data.keys().hasAny(['buildingArea']) || data.buildingArea == null || data.buildingArea is number)
+        && (!data.keys().hasAny(['njopBuilding']) || data.njopBuilding == null || data.njopBuilding is number)
+        && (!data.keys().hasAny(['polygonCoords']) || data.polygonCoords == null || data.polygonCoords is list)
+        && (!data.keys().hasAny(['paymentDate']) || data.paymentDate == null || data.paymentDate is string)
+        && (!data.keys().hasAny(['paymentMethod']) || data.paymentMethod == null || data.paymentMethod is string);
     }
 
     function isValidPaymentUpdate() {
