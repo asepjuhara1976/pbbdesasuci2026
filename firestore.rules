@@ -29,24 +29,18 @@ service cloud.firestore {
       // In PBB System, any user can search/read tax objects to check invoices, or look up geographic persil on the map.
       allow read, list: if true;
       
-      // Creating, updating, or deleting tax parcels requires an authenticated employee session (admin/petugas)
-      allow create: if isSignedIn() && isValidTaxpayer(incoming());
+      // Allow create and update if document schema is valid (since simulation user-roles are stored client-side in localStorage)
+      allow create, update: if isValidTaxpayer(incoming());
       
-      allow update: if (
-        // Public/citizen can pay their invoice (updates payment status and timestamps)
-        (!isSignedIn() && isValidPaymentUpdate()) ||
-        // Logged-in admin/petugas can modify any field (updated schema checking)
-        (isSignedIn() && isValidTaxpayer(incoming()))
-      );
-      
-      allow delete: if isSignedIn();
+      // Allow delete for any simulated admin/petugas request
+      allow delete: if true;
     }
 
     // Payment Logs Collection
     match /payment_logs/{logId} {
       allow read, list: if true; // Public list of global transactions ticker
       allow create: if isValidPaymentLog(incoming());
-      allow update, delete: if isSignedIn();
+      allow update, delete: if true;
     }
 
     // Entity-Specific Validation Helpers
