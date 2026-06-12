@@ -198,8 +198,8 @@ export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, o
             nop = `32.73.010.021.001-${randomNopSuffix}.0`;
           }
 
-          const address = row['Alamat Domisili'] || row['Alamat'] || row['Domisili'] || 'Bandung';
-          const objectAddress = row['Letak Objek Pajak'] || row['Alamat Objek'] || row['Letak Objek'] || 'Desa Suci, Bandung';
+          const address = row['Alamat Domisili'] || row['Alamat'] || row['Domisili'] || 'Garut';
+          const objectAddress = row['Letak Objek Pajak'] || row['Alamat Objek'] || row['Letak Objek'] || 'Desa Suci, Garut';
           
           const landArea = parseNumber(row['Luas Tanah (m2)'] || row['Luas Tanah'] || row['Luas Bumi'] || row['Lahan'], 100);
           const buildingArea = parseNumber(row['Luas Bangunan (m2)'] || row['Luas Bangunan'] || row['Bangunan'], 0);
