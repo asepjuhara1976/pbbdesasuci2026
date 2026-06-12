@@ -24,15 +24,52 @@ import {
 import { Taxpayer } from '../types';
 import * as XLSX from 'xlsx';
 
+// Helper to parse coordinate from excel cell cleanly
+const parseCoordinate = (val: any): number | null => {
+  if (val === undefined || val === null) return null;
+  const str = String(val).trim();
+  if (str === '' || str.toLowerCase() === 'n/a' || str === '-') return null;
+  const num = Number(str.replace(/,/g, '.'));
+  if (isNaN(num) || num === 0) return null;
+  return num;
+};
+
+// Helper for general clean number parsing
+const parseNumber = (val: any, fallback: number = 0): number => {
+  if (val === undefined || val === null) return fallback;
+  const str = String(val).trim();
+  if (str === '' || str === '-') return fallback;
+  
+  // Remove "Rp" symbol, dots as thousands separators, and check for comma decimal
+  let cleaned = str.replace(/rp\.?/gi, '').trim();
+  if (cleaned.includes('.') && cleaned.includes(',')) {
+    // Indonesian format: 1.250.000,00 -> 1250000.00
+    cleaned = cleaned.replace(/\./g, '').replace(/,/g, '.');
+  } else if (cleaned.includes('.')) {
+    // ambiguous: could be "1.000" (three zeros after dot -> thousands) or "1.5" (decimal)
+    const parts = cleaned.split('.');
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      cleaned = cleaned.replace(/\./g, '');
+    }
+  } else if (cleaned.includes(',')) {
+    // Indonesian decimal or thousands with comma: replaced with dot
+    cleaned = cleaned.replace(/,/g, '.');
+  }
+  
+  const num = Number(cleaned);
+  return isNaN(num) ? fallback : num;
+};
+
 interface TaxpayerListProps {
   taxpayers: Taxpayer[];
   onDelete: (id: string) => Promise<void>;
   onInspect: (tp: Taxpayer) => void;
   onSave: (tp: Taxpayer) => Promise<void>;
+  onSaveBatch?: (tps: Taxpayer[]) => Promise<void>;
   isLoggedIn: boolean;
 }
 
-export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, isLoggedIn }: TaxpayerListProps) {
+export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, onSaveBatch, isLoggedIn }: TaxpayerListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
@@ -81,6 +118,7 @@ export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, i
           'Luas Bangunan (m2)': 100,
           'NJOP Bumi per m2 (Rp)': 3500000,
           'NJOP Bangunan per m2 (Rp)': 2500000,
+          'Jumlah Bayar (Rp)': 475000,
           'Status Bayar (Lunas/Nunggak)': 'Lunas',
           'Tanggal Pembayaran (YYYY-MM-DD)': '2026-06-05',
           'Metode Pembayaran': 'QRIS Dinamis',
@@ -96,6 +134,7 @@ export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, i
           'Luas Bangunan (m2)': 80,
           'NJOP Bumi per m2 (Rp)': 3000000,
           'NJOP Bangunan per m2 (Rp)': 2200000,
+          'Jumlah Bayar (Rp)': 626000,
           'Status Bayar (Lunas/Nunggak)': 'Nunggak',
           'Tanggal Pembayaran (YYYY-MM-DD)': '',
           'Metode Pembayaran': '',
@@ -140,6 +179,7 @@ export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, i
 
         let successCount = 0;
         let skipCount = 0;
+        const taxpayersToSave: Taxpayer[] = [];
 
         for (const row of parsedRows) {
           // Robust mapping variations
@@ -161,29 +201,39 @@ export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, i
           const address = row['Alamat Domisili'] || row['Alamat'] || row['Domisili'] || 'Bandung';
           const objectAddress = row['Letak Objek Pajak'] || row['Alamat Objek'] || row['Letak Objek'] || 'Desa Suci, Bandung';
           
-          const landArea = Number(row['Luas Tanah (m2)'] || row['Luas Tanah'] || row['Luas Bumi'] || row['Lahan'] || 100);
-          const buildingArea = Number(row['Luas Bangunan (m2)'] || row['Luas Bangunan'] || row['Bangunan'] || 0);
+          const landArea = parseNumber(row['Luas Tanah (m2)'] || row['Luas Tanah'] || row['Luas Bumi'] || row['Lahan'], 100);
+          const buildingArea = parseNumber(row['Luas Bangunan (m2)'] || row['Luas Bangunan'] || row['Bangunan'], 0);
           
-          const njopLand = Number(row['NJOP Bumi per m2 (Rp)'] || row['NJOP Bumi per m2'] || row['NJOP Tanah'] || row['NJOP Bumi'] || 3000000);
-          const njopBuilding = Number(row['NJOP Bangunan per m2 (Rp)'] || row['NJOP Bangunan per m2'] || row['NJOP Bangunan'] || 2000000);
+          const njopLand = parseNumber(row['NJOP Bumi per m2 (Rp)'] || row['NJOP Bumi per m2'] || row['NJOP Tanah'] || row['NJOP Bumi'], 3000000);
+          const njopBuilding = parseNumber(row['NJOP Bangunan per m2 (Rp)'] || row['NJOP Bangunan per m2'] || row['NJOP Bangunan'], 2000000);
 
           const rawStatus = String(row['Status Bayar (Lunas/Nunggak)'] || row['Status Bayar'] || row['Lunas'] || row['Status'] || '').toLowerCase();
           const isPaid = rawStatus.includes('lunas') || rawStatus.includes('sudah') || rawStatus === '1' || rawStatus === 'true' || rawStatus === 'paid';
 
-          // Math formula
+          // Math formula fallback if custom total amount is omitted or invalid or negative
           const totalLandPrice = landArea * njopLand;
           const totalBuildingPrice = buildingArea * njopBuilding;
-          const totalTax = Math.round((totalLandPrice + totalBuildingPrice) * 0.001);
+          const calculatedTax = Math.round((totalLandPrice + totalBuildingPrice) * 0.001);
 
-          // Get coords with fallbacks inside Desa Suci boundary ranges
-          let lat = Number(row['Latitude'] || row['Lintang'] || row['LAT'] || 0);
-          let lng = Number(row['Longitude'] || row['Bujur'] || row['LNG'] || 0);
-
-          if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-            // center Desa Suci is ~ -7.216212, 107.923912
-            lat = -7.216212 + (Math.random() - 0.5) * 0.005;
-            lng = 107.923912 + (Math.random() - 0.5) * 0.005;
+          let totalTax = parseNumber(
+            row['Jumlah Bayar (Rp)'] || 
+            row['Jumlah Bayar'] || 
+            row['Jumlah Tagihan (Rp)'] || 
+            row['Jumlah Tagihan'] || 
+            row['Total Pajak'] || 
+            row['Pajak'], 
+            0
+          );
+          if (totalTax <= 0) {
+            totalTax = calculatedTax;
           }
+
+          // Get coords with fallbacks inside Desa Suci boundary ranges (and handling empty or malformed cells)
+          const parsedLat = parseCoordinate(row['Latitude'] || row['Lintang'] || row['LAT']);
+          const parsedLng = parseCoordinate(row['Longitude'] || row['Bujur'] || row['LNG']);
+
+          let lat = parsedLat ?? 0;
+          let lng = parsedLng ?? 0;
 
           const paymentDate = row['Tanggal Pembayaran (YYYY-MM-DD)'] || row['Tanggal Pembayaran'] || row['Tanggal Bayar'] || (isPaid ? '2026-06-11' : undefined);
           const paymentMethod = row['Metode Pembayaran'] || row['Metode Bayar'] || row['Metode'] || (isPaid ? 'Transfer ATM/VA' : undefined);
@@ -206,8 +256,18 @@ export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, i
             updatedAt: new Date().toISOString()
           };
 
-          await onSave(importedTaxpayer);
-          successCount++;
+          taxpayersToSave.push(importedTaxpayer);
+        }
+
+        if (taxpayersToSave.length > 0) {
+          if (onSaveBatch) {
+            await onSaveBatch(taxpayersToSave);
+          } else {
+            for (const tp of taxpayersToSave) {
+              await onSave(tp);
+            }
+          }
+          successCount = taxpayersToSave.length;
         }
 
         setImportMessage({
@@ -589,6 +649,11 @@ export default function TaxpayerList({ taxpayers, onDelete, onInspect, onSave, i
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {(!tp.lat || !tp.lng || (tp.lat === 0 && tp.lng === 0)) && (
+                    <span className="text-[9.5px] tracking-wider font-bold px-2 py-0.5 rounded-full uppercase bg-amber-500/10 text-amber-600 dark:text-amber-450 border border-amber-500/20">
+                      Belum Dipetakan
+                    </span>
+                  )}
                   <span className={`text-[9.5px] tracking-wider font-bold px-2 py-0.5 rounded-full uppercase ${
                     tp.isPaid 
                       ? 'bg-cyan-500/10 text-cyan-500 dark:text-cyan-400 border border-cyan-500/20' 
