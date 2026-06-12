@@ -10,6 +10,7 @@ import {
   syncTaxpayers, 
   syncPaymentLogs, 
   saveTaxpayer, 
+  saveTaxpayersBatch,
   deleteTaxpayer, 
   addPaymentLog,
   getLoggedInPetugas,
@@ -165,6 +166,7 @@ export default function App() {
               onDelete={handleDeleteTaxpayer}
               onInspect={handleInspectOnMap}
               onSave={handleAddTaxpayer}
+              onSaveBatch={saveTaxpayersBatch}
               isLoggedIn={!!loggedInUser}
             />
           )}
