@@ -453,7 +453,7 @@ export interface PetugasUser {
 export const signInDemoPetugas = (): PetugasUser => {
   const mockUser: PetugasUser = {
     uid: "petugas-007",
-    name: "Ir. Doni Hermawan",
+    name: "Asep Juhara",
     email: "doni.hermawan@pemkot.go.id",
     role: "Petugas"
   };
