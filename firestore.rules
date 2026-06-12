@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global safety net - deny anything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helper primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Taxpayers Collection
+    match /taxpayers/{nop} {
+      // In PBB System, any user can search/read tax objects to check invoices, or look up geographic persil on the map.
+      allow read, list: if true;
+      
+      // Creating, updating, or deleting tax parcels requires an authenticated employee session (admin/petugas)
+      allow create: if isSignedIn() && isValidTaxpayer(incoming());
+      
+      allow update: if (
+        // Public/citizen can pay their invoice (updates payment status and timestamps)
+        (!isSignedIn() && isValidPaymentUpdate()) ||
+        // Logged-in admin/petugas can modify any field (updated schema checking)
+        (isSignedIn() && isValidTaxpayer(incoming()))
+      );
+      
+      allow delete: if isSignedIn();
+    }
+
+    // Payment Logs Collection
+    match /payment_logs/{logId} {
+      allow read, list: if true; // Public list of global transactions ticker
+      allow create: if isValidPaymentLog(incoming());
+      allow update, delete: if isSignedIn();
+    }
+
+    // Entity-Specific Validation Helpers
+    function isValidTaxpayer(data) {
+      return data.keys().hasAll(['id', 'name', 'address', 'objectAddress', 'landArea', 'buildingArea', 'njopLand', 'njopBuilding', 'totalTax', 'isPaid', 'lat', 'lng', 'updatedAt'])
+        && data.id is string && data.id.size() <= 100
+        && data.name is string && data.name.size() <= 200
+        && data.address is string && data.address.size() <= 500
+        && data.objectAddress is string && data.objectAddress.size() <= 500
+        && data.landArea is number
+        && data.buildingArea is number
+        && data.njopLand is number
+        && data.njopBuilding is number
+        && data.totalTax is number
+        && data.isPaid is bool
+        && data.lat is number
+        && data.lng is number
+        && data.updatedAt is string
+        && (!data.keys().hasAny(['polygonCoords']) || data.polygonCoords is list)
+        && (!data.keys().hasAny(['paymentDate']) || data.paymentDate is string)
+        && (!data.keys().hasAny(['paymentMethod']) || data.paymentMethod is string);
+    }
+
+    function isValidPaymentUpdate() {
+      // Allow only transitioning 'isPaid' status and details of payment
+      return incoming().isPaid == true 
+             && incoming().id == existing().id
+             && incoming().name == existing().name;
+    }
+
+    function isValidPaymentLog(data) {
+      return data.keys().hasAll(['id', 'nop', 'taxpayerName', 'amount', 'method', 'timestamp'])
+        && data.id is string && data.id.size() <= 128
+        && data.nop is string && data.nop.size() <= 100
+        && data.taxpayerName is string && data.taxpayerName.size() <= 200
+        && data.amount is number
+        && data.method is string
+        && data.timestamp is string;
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "Taxpayer": {
+      "title": "Taxpayer",
+      "description": "Individu atau perusahaan wajib pajak PBB beserta koordinat persil lahannya",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "NOP (Nomor Objek Pajak)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Nama Lengkap Pemilik"
+        },
+        "address": {
+          "type": "string",
+          "description": "Alamat Domisili Pemilik"
+        },
+        "objectAddress": {
+          "type": "string",
+          "description": "Alamat Objek Pajak (Tanah/Bangunan)"
+        },
+        "landArea": {
+          "type": "number",
+          "description": "Luas Tanah dalam m2"
+        },
+        "buildingArea": {
+          "type": "number",
+          "description": "Luas Bangunan dalam m2"
+        },
+        "njopLand": {
+          "type": "number",
+          "description": "NJOP Bumi per m2"
+        },
+        "njopBuilding": {
+          "type": "number",
+          "description": "NJOP Bangunan per m2"
+        },
+        "totalTax": {
+          "type": "number",
+          "description": "Total ketetapan tagihan PBB"
+        },
+        "isPaid": {
+          "type": "boolean",
+          "description": "Status pelunasan PBB"
+        },
+        "lat": {
+          "type": "number",
+          "description": "Koordinat Latitude peta"
+        },
+        "lng": {
+          "type": "number",
+          "description": "Koordinat Longitude peta"
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "Tanggal pembayaran"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Metode Pembayaran (e.g. QRIS, VA, E-Wallet)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Waktu update terakhir"
+        }
+      },
+      "required": ["id", "name", "landArea", "njopLand", "totalTax", "isPaid", "lat", "lng", "updatedAt"]
+    },
+    "PaymentLog": {
+      "title": "PaymentLog",
+      "description": "Catatan log pembayaran PBB real-time",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID log transaksi"
+        },
+        "nop": {
+          "type": "string",
+          "description": "Nomor Objek Pajak"
+        },
+        "taxpayerName": {
+          "type": "string",
+          "description": "Nama Pembayar"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Besaran pembayaran PBB"
+        },
+        "method": {
+          "type": "string",
+          "description": "Metode pembayaran"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Tanggal dan waktu transaksi"
+        }
+      },
+      "required": ["id", "nop", "taxpayerName", "amount", "method", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/taxpayers/{nop}": {
+      "schema": "Taxpayer",
+      "description": "Pemberkasan objek pajak dan wajib pajak PBB"
+    },
+    "/payment_logs/{logId}": {
+      "schema": "PaymentLog",
+      "description": "History log transaksi pembayaran real-time wajib pajak"
+    }
+  }
+}

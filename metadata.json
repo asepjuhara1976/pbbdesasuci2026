@@ -1,0 +1,6 @@
+{
+  "name": "PBB Mobile & GIS",
+  "description": "Aplikasi Pajak Bumi dan Bangunan (PBB) berbasis geospasial dengan layout modern responsive (desktop, tablet, & mobile), fitur dark mode, dan integrasi Firestore real-time.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
