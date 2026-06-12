@@ -1,7 +1,7 @@
 {
-  "name": "Nama Aplikasi Anda",
-  "short_name": "NamaSingkat",
-  "start_url": "/",
+  "name": "Apk.PBB Desa Suci",
+  "short_name": "GIS-PBB",
+  "start_url": "https://pbbdesasuci2026.vercel.app/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
