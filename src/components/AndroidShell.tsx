@@ -169,7 +169,7 @@ export default function AndroidShell({
                 </div>
                 <div className="text-xs">
                   <span className="text-slate-500 block text-[10px] uppercase font-mono tracking-wider">Petugas Aktif</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200 mt-1 block">Ir. Doni Hermawan</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 mt-1 block">Asep Juhara</span>
                 </div>
                 <button
                   onClick={onLogout}
